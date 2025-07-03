@@ -39,7 +39,10 @@ The code repository for "[Learning without Forgetting for Vision-Language Models
   title={Learning without Forgetting for Vision-Language Models},
   author={Da-Wei Zhou and Yuanhan Zhang and Yan Wang and Jingyi Ning and Han-Jia Ye and De-Chuan Zhan and Ziwei Liu},
   journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
-  year={2025}
+  year={2025},
+  volume={47},
+  number={6},
+  pages={4489-4504},
 }
 ```
 
