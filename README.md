@@ -47,6 +47,8 @@ The code repository for "[Learning without Forgetting for Vision-Language Models
 
 # 📢 **Updates**
 
+[07/2025] Check out our [latest work](https://arxiv.org/abs/2503.08510) on class-incremental learning with CLIP (**ICCV 2025**)! 
+
 [02/2025] Accepted to TPAMI.
 
 [10/2024] Code has been released.
