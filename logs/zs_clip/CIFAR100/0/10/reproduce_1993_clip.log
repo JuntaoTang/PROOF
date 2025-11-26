@@ -1,0 +1,13 @@
+2025-11-25 18:56:46,622 [trainer.py] => config: ./exps/zs_clip.json
+2025-11-25 18:56:46,622 [trainer.py] => prefix: reproduce
+2025-11-25 18:56:46,622 [trainer.py] => dataset: CIFAR100
+2025-11-25 18:56:46,622 [trainer.py] => memory_size: 0
+2025-11-25 18:56:46,622 [trainer.py] => memory_per_class: 0
+2025-11-25 18:56:46,622 [trainer.py] => fixed_memory: False
+2025-11-25 18:56:46,622 [trainer.py] => shuffle: True
+2025-11-25 18:56:46,622 [trainer.py] => init_cls: 10
+2025-11-25 18:56:46,622 [trainer.py] => increment: 10
+2025-11-25 18:56:46,622 [trainer.py] => model_name: zs_clip
+2025-11-25 18:56:46,622 [trainer.py] => convnet_type: clip
+2025-11-25 18:56:46,622 [trainer.py] => device: [device(type='cuda', index=0)]
+2025-11-25 18:56:46,622 [trainer.py] => seed: 1993

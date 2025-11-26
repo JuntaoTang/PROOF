@@ -72,8 +72,9 @@ class Learner(BaseLearner):
         self._network.extend_task()
         
         logging.info("Learning on {}-{}".format(self._known_classes, self._total_classes))
-        train_dataset = data_manager.get_dataset(np.arange(self._known_classes, self._total_classes),
-            source="train", mode="train", appendent=self._get_memory())
+        
+        train_dataset = data_manager.get_dataset(np.arange(self._known_classes, self._total_classes),source="train", mode="train", appendent=self._get_memory())
+
         self.train_dataset=train_dataset
         self.data_manager=data_manager
         self._network.to(self._device)
@@ -131,10 +132,13 @@ class Learner(BaseLearner):
                 
                 texts = [templates.format(inst) for inst in total_labels]
                 texts = self._network.tokenizer(texts).to(self._device)
+
                 text_features = self._network.encode_text(texts) # [total_classes, dim]
                 text_feas = text_features / text_features.norm(dim=-1, keepdim=True)
                 image_features = self._network.encode_image(inputs)
                 img_feas = image_features / image_features.norm(dim=-1, keepdim=True) #[bs, dim]
+
+                
                 image_features, text_features, logit_scale, proto_feas=self._network.forward_transformer(img_feas, text_feas,self._train_transformer)
                 logits = image_features@text_features.T # [bs, allclasses]
 
@@ -144,6 +148,7 @@ class Learner(BaseLearner):
                 clip_text_feas = clip_text_feas / clip_text_norm
 
                 clip_loss = cliploss(img_feas, clip_text_feas, logit_scale)
+
 
                 loss = F.cross_entropy(logits, targets)
 

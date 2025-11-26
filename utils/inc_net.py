@@ -7,6 +7,8 @@ import timm
 import torch.nn.functional as F
 from convs.projections import Proj_Pure_MLP, MultiHeadAttention
 from utils.toolkit import get_attribute
+from convs.adapter import AdapterLayer
+from convs.lora import LoRALinear
 
 def get_convnet(args, pretrained=False):
 
@@ -524,4 +526,245 @@ class Proof_Net(SimpleClipNet):
         for param in self.sel_attn.parameters():
             param.requires_grad = True
 
+class PeftClipNet(SimpleClipNet):
+    def __init__(self, args, pretrained):
+        super().__init__(args, pretrained)
+        self.args = args
+        self._device = self.args["device"][0]
 
+    def encode_image(self, x, normalize: bool = False):
+        x = x.to(self._device)
+        image_feas=self.convnet.encode_image(x)
+        return F.normalize(image_feas, dim=-1) if normalize else image_feas
+        
+    def encode_text(self, x, normalize: bool = False):
+        x = x.to(self._device)
+        text_feas=self.convnet.encode_text(x)
+        return F.normalize(text_feas, dim=-1) if normalize else text_feas
+     
+    def forward(self, image, text):
+        image_features = self.encode_image(image, normalize=True)#bs,dim
+        text_features = self.encode_text(text, normalize=True)#bs,dim
+        return image_features, text_features, self.convnet.logit_scale.exp()
+    
+#注意，这里我考虑了两种adapter，一种是加在proj后面的，另一种就是在CLIP内部的Transformer块后面加
+class AdapterClipNet(PeftClipNet):
+    def __init__(self, args, pretrained):
+        super().__init__(args, pretrained)
+        self.num_adapters = get_attribute(self.args, 'num_adapters', 1)
+        self.adapter_dim = get_attribute(self.args, 'adapter_dim', 64)
+        self.residual_scale = get_attribute(self.args, 'residual_scale', 0.6)  # 残差连接比例
+        
+        # 存储Adapter模块
+        self.adapters = nn.ModuleList()
+        
+        # 初始化Adapter
+        # self._setup_visual_adapters()
+        # self._setup_texual_adapters()
+        self._add_adapter(is_visual=True)
+        self._add_adapter(is_visual=False)
+        self.visual_proj_adapter = AdapterLayer(512,adapter_dim=self.adapter_dim,alpha=self.residual_scale)
+        self.adapters.append(self.visual_proj_adapter)
+        self.textual_proj_adapter = AdapterLayer(512,adapter_dim=self.adapter_dim,alpha=self.residual_scale)
+        self.adapters.append(self.textual_proj_adapter)
+
+        #冻结
+        self.freeze_backbone()
+    
+    def _add_adapter(self,is_visual=False):
+        blocks= self.convnet.visual.transformer.resblocks if is_visual else self.convnet.transformer.resblocks
+        num_layers=len(blocks)
+
+        # 计算要添加Adapter的层索引（从后往前）
+        start_idx = max(0, num_layers - self.num_adapters+1)#这里把proj的adapter给减掉
+        adapter_indices = list(range(start_idx, num_layers))
+
+        # 为选中的层添加Adapter
+        for idx in adapter_indices:
+            layer = blocks[idx]
+            adapter = AdapterLayer(768,adapter_dim=self.adapter_dim,alpha=self.residual_scale) if is_visual else AdapterLayer(512,adapter_dim=self.adapter_dim,alpha=self.residual_scale)
+            self.adapters.append(adapter)
+            # 使用hook机制插入Adapter
+            self._add_adapter_to_layer(layer, adapter)
+
+    # 只针对transformer层的adapter，不是最后投影层的
+    def _add_adapter_to_layer(self, layer, adapter):
+        def adapter_hook(module, input, output):
+            out = output[0] if isinstance(output, tuple) else output
+            
+            # 维度转换：CLIP Transformer默认返回 (seq_len, batch_size, dim)，转为 (batch_size, seq_len, dim)
+            out_bsz = out.permute(1, 0, 2)  # (batch, seq, dim)
+            
+            # 1. 提取CLS token（仅对第0位token应用Adapter）
+            cls_token = out_bsz[:, 0, :]  # (batch, dim)
+            
+            # 2. 通过Adapter处理CLS token
+            adapted_cls = adapter(cls_token)  # (batch, dim)
+            
+            # 3. 安全替换CLS token
+            new_out_bsz = out_bsz.clone()  #这里要小心修改计算图的问题
+            new_out_bsz[:, 0, :] = adapted_cls  # 仅替换CLS token，保留其他token的原始特征
+            
+            # 4. 恢复原始维度顺序 (seq_len, batch_size, dim)
+            new_out = new_out_bsz.permute(1, 0, 2)
+            
+            # 5. 保持输出格式与原模块一致（输入是tuple）
+            if isinstance(output, tuple):
+                return (new_out,) + output[1:]
+            return new_out
+        
+        # 注册forward hook，注入Adapter逻辑
+        layer.register_forward_hook(adapter_hook)
+
+    def forward(self, image, text):
+        image_features = self.encode_image(image, normalize=True)#bs,dim
+        text_features = self.encode_text(text, normalize=True)#bs,dim
+        image_features=self.visual_proj_adapter(image_features)
+        text_features=self.textual_proj_adapter(text_features)
+        return image_features, text_features, self.convnet.logit_scale.exp()
+
+    def freeze_backbone(self):
+        # 冻结整个CLIP模型
+        for param in self.convnet.parameters():
+            param.requires_grad = False
+        # 只保持Adapter可训练
+        for adapter in self.adapters:
+            for param in adapter.parameters():
+                param.requires_grad = True
+
+class LoRAClipNet(PeftClipNet):
+    def __init__(self, args, pretrained):
+        super().__init__(args, pretrained)
+        self.lora_rank =get_attribute(args, 'lora_rank', 8)
+        self.lora_alpha = get_attribute(args, 'lora_alpha', 16.0)
+        self.num_lora=get_attribute(args,"num_lora",1)
+        
+        self.lora_modules = nn.ModuleDict()
+
+        self._add_lora(is_visual=True)
+        self._add_lora(is_visual=False)
+
+        self._freeze_backbone()
+    
+    def _add_lora(self,is_visual=True):
+        blocks=self.convnet.visual.transformer.resblocks if is_visual==True else self.convnet.visual.transformer.resblocks
+        num_layers=len(blocks)
+        start_idx= max(0,  num_layers - self.num_lora)
+        lora_indices=list(range(start_idx,  num_layers))
+        for idx in lora_indices:
+            attn =blocks[idx].attn
+            self._replace_linear_with_lora(attn, f'visual_attn_{idx}')
+
+    def _replace_linear_with_lora(self, attn_module, module_name):
+        # 替换qkv投影层，这里主要是MHA的实现上把三个合在一起投影了，所以就暂时没拆分
+        if hasattr(attn_module, 'in_proj'):
+            orig_linear = attn_module.in_proj
+            lora_linear = LoRALinear(orig_linear, self.lora_rank, self.lora_alpha)
+            attn_module.in_proj = lora_linear
+            self.lora_modules[f'{module_name}_in_proj'] = lora_linear
+        
+        # 替换输出投影层
+        if hasattr(attn_module, 'out_proj'):
+            orig_linear = attn_module.out_proj
+            lora_linear = LoRALinear(orig_linear, self.lora_rank, self.lora_alpha)
+            attn_module.out_proj = lora_linear
+            self.lora_modules[f'{module_name}_out_proj'] = lora_linear
+    
+
+    def _freeze_backbone(self):
+        for param in self.convnet.parameters():
+            param.requires_grad = False
+        
+        # 确保 LoRA 参数是可训练的
+        for module in self.lora_modules.values():
+            for param in module.parameters():
+                param.requires_grad = True
+
+class PromptClipNet(PeftClipNet):
+    def __init__(self, args, pretrained):
+        super().__init__(args, pretrained)
+        self.prompt_length = get_attribute(args, 'prompt_length',40)
+        self.prompt_layers = get_attribute(args, 'prompt_layers', 8)
+        self.prompt_init = get_attribute(args, 'prompt_init', 'random')
+        
+        # 只在视觉侧添加prompt
+        self.visual_prompts = nn.ParameterList()
+        self._visual_hooks = []
+        
+        # 获取视觉编码器维度
+        self.visual_dim = 768  # ViT-B/16适用，主要是我没找到正确的接口，目前先硬编码吧
+
+        self.original_seq_len=197
+        # 初始化prompt
+        self._setup_visual_prompts()
+        
+        # 冻结主干网络
+        self._freeze_backbone()
+
+    def _setup_visual_prompts(self):
+        visual_encoder = self.convnet.visual
+        num_layers = len(visual_encoder.transformer.resblocks)
+        
+        # 选择要添加prompt的层（最后几层）
+        start_idx = max(0, num_layers - self.prompt_layers)
+        prompt_indices = list(range(start_idx, num_layers))
+        
+        for idx in prompt_indices:
+            prompt = self._init_prompt_parameter(self.visual_dim)
+            self.visual_prompts.append(prompt)
+            
+            layer = visual_encoder.transformer.resblocks[idx]
+            hook = self._add_prompt_to_visual_layer(layer, prompt, idx)
+            self._visual_hooks.append(hook)
+
+    def _init_prompt_parameter(self, dim):
+        """初始化prompt参数"""
+        if self.prompt_init == 'zeros':
+            prompt = torch.zeros(self.prompt_length, dim)#prompt由prompt_length个可学习的token组成
+        elif self.prompt_init == 'uniform':
+            prompt = torch.empty(self.prompt_length, dim)
+            nn.init.uniform_(prompt, -0.1, 0.1)
+        else:  # random
+            prompt = torch.randn(self.prompt_length, dim) * 0.02
+            
+        return nn.Parameter(prompt.to(self._device))
+
+    def _add_prompt_to_visual_layer(self, layer, prompt, layer_idx):
+        def prompt_pre_hook(module, input):
+            # 输入: (seq_len, batch_size, dim)
+            # 注意vision-encoder通常没有attention mask，所以比较容易一些，我之前尝试在text-encoder加，就会有这个mask的问题
+            x = input[0]
+            batch_size = x.shape[1]
+
+            # 检查当前序列长度，确保不会累积
+            current_seq_len = x.shape[0]
+            if current_seq_len > self.original_seq_len:
+                # 如果序列长度已经增加（可能因为前一层的prompt），恢复原始序列
+                # 保留CLS token和原始patch tokens
+                x = torch.cat([x[:1], x[1+self.prompt_length:]], dim=0)
+                # 现在x的形状应该是 (original_seq_len, batch_size, dim)
+
+            # 扩展prompt到batch size
+            prompt_expanded = prompt.unsqueeze(1).expand(-1, batch_size, -1)
+            
+            # 将prompt添加到CLS token之后
+            # 原始序列: [CLS, patch1, patch2, ...]
+            # 新序列: [CLS, prompt1, prompt2, ..., patch1, patch2, ...]
+            new_x = torch.cat([x[:1, :, :], prompt_expanded, x[1:, :, :]], dim=0)
+            #这里写的时候容易出错，具体来说x[:1, :, :]不要写成x[0, :, :]，因为后者少了一个维度
+            #print("the new sequence length is",len(new_x))
+            # 返回修改后的输入
+            if len(input) > 1:
+                return (new_x,) + input[1:]
+            else:
+                return (new_x,)
+        
+        return layer.register_forward_pre_hook(prompt_pre_hook)
+
+    def _freeze_backbone(self):
+        for param in self.convnet.parameters():
+            param.requires_grad = False
+        
+        # 确保prompt参数是可训练的
+        for prompt in self.visual_prompts:
+            prompt.requires_grad = True

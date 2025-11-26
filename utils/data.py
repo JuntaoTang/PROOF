@@ -109,8 +109,8 @@ class iCIFAR224(iData):
     class_order = np.arange(100).tolist()
 
     def download_data(self):
-        train_dataset = datasets.cifar.CIFAR100("/data/sunhl/data", train=True, download=True)
-        test_dataset = datasets.cifar.CIFAR100("/data/sunhl/data", train=False, download=True)
+        train_dataset = datasets.cifar.CIFAR100("./data//cifar100", train=True, download=True)
+        test_dataset = datasets.cifar.CIFAR100("./data//cifar100", train=False, download=True)
         self.train_data, self.train_targets = train_dataset.data, np.array(
             train_dataset.targets
         )
@@ -260,8 +260,8 @@ class CUB(iData):
 
     def download_data(self):
         # assert 0, "You should specify the folder of your dataset"
-        train_dir = "/data/sunhl/data/cub/train/"
-        test_dir = "/data/sunhl/data/cub/test/"
+        train_dir = "/data/cub/train/"
+        test_dir = "/data/cub/test/"
 
         train_dset = datasets.ImageFolder(train_dir)
         test_dset = datasets.ImageFolder(test_dir)

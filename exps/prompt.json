@@ -1,0 +1,25 @@
+{
+    "prefix": "reproduce",
+    "dataset": "cifar224",
+    "memory_size": 0,
+    "memory_per_class": 0,
+    "fixed_memory": false,
+    "shuffle": true,
+    "init_cls": 10,
+    "increment": 10,
+    "peft_method":"prompt",
+    "model_name": "peft_clip",
+    "convnet_type": "clip",
+    "init_lr": 0.001,
+    "batch_size": 64,
+    "weight_decay": 0.05,
+    "min_lr": 0,
+    "optimizer": "sgd",
+    "tuned_epoch":10,
+    "device": [
+        "0"
+    ],
+    "seed": [
+        1993
+    ]
+}

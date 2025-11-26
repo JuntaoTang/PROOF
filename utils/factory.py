@@ -9,5 +9,8 @@ def get_model(model_name, args):
     elif name =="zs_clip":
         from models.zs_clip import Learner
         return Learner(args)
+    elif name == 'peft_clip':
+        from models.peft_clip import Learner
+        return Learner(args)
     else:
         assert 0
