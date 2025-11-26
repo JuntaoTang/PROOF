@@ -559,8 +559,7 @@ class AdapterClipNet(PeftClipNet):
         self.adapters = nn.ModuleList()
         
         # 初始化Adapter
-        # self._setup_visual_adapters()
-        # self._setup_texual_adapters()
+
         self._add_adapter(is_visual=True)
         self._add_adapter(is_visual=False)
         self.visual_proj_adapter = AdapterLayer(512,adapter_dim=self.adapter_dim,alpha=self.residual_scale)
