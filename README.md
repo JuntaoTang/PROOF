@@ -1,6 +1,7 @@
 # PEFT on CLIP based on the framework of CIL
 
-# you may test the upper bound and lower bound of PEFT on CLIP without any effort on trying to solving forgetting. 
+# Introduction
+This work aims to implement benchmarking code for the field of continual learning (especially class-incremental learning). Specifically, you can use this code to test the effectiveness of three PEFT methods—Adapter, LoRA, and Prompt Tuning—on CLIP. It allows you to evaluate both a theoretical upper bound and a lower bound. To achieve this, you can configure the model to either access data from all previously seen tasks or only data from the current task, respectively.
 
 ## 🔧 Requirements
 
