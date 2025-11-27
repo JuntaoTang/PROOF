@@ -1,7 +1,12 @@
 # PEFT on CLIP based on the framework of CIL
 
-# Introduction
+## Introduction
 This work aims to implement benchmarking code for the field of continual learning (especially class-incremental learning). Specifically, you can use this code to test the effectiveness of three PEFT methods—Adapter, LoRA, and Prompt Tuning—on CLIP. It allows you to evaluate both a theoretical upper bound and a lower bound. To achieve this, you can configure the model to either access data from all previously seen tasks or only data from the current task, respectively.
+
+## How to modify the model
+- the implement of lora/adapter layer is in convs/xx.py
+- the implement of peft-clip is in utils/inc_net.py
+- the model for CIL is in peft_clip.py
 
 ## 🔧 Requirements
 
