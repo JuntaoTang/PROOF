@@ -1,71 +1,6 @@
-# Learning without Forgetting for Vision-Language Models
+# PEFT on CLIP based on the framework of CIL
 
-
-
-<div align="center">
-    <div>
-        <a href='http://www.lamda.nju.edu.cn/zhoudw' target='_blank'>Da-Wei Zhou</a><sup>1</sup>&emsp;
-        <a href='https://zhangyuanhan-ai.github.io/' target='_blank'>Yuanhan Zhang</a><sup>2</sup>&emsp;
-        Yan Wang<sup>1</sup>&emsp;
-        <a href='https://jingyinju.github.io/' target='_blank'>Jingyi Ning</a><sup>1</sup>&emsp;
-        <a href='http://www.lamda.nju.edu.cn/yehj' target='_blank'>Han-Jia Ye</a><sup>1</sup>&emsp;
-        <a href='http://www.lamda.nju.edu.cn/zhandc' target='_blank'>De-Chuan Zhan</a><sup>1</sup>&emsp;
-        <a href='http://liuziwei7.github.io/' target='_blank'>Ziwei Liu</a><sup>2</sup>
-    </div>
-    <div>
-    <sup>1</sup>School of Artificial Intelligence, State Key Laboratory for Novel Software Technology, Nanjing University<br>
-    <sup>2</sup>S-Lab, Nanyang Technological University
-    </div>
-</div>
-
-
-
-
-<div align="center">
-  <img src="https://visitor-badge.laobi.icu/badge?page_id=zhoudw-zdw.Proof&left_color=yellow&right_color=purple" alt="visitors">
-  <a href="https://arxiv.org/abs/2305.19270">
-    <img src="https://img.shields.io/badge/TPAMI2025-red" alt="arXiv">
-  </a>
-
-  
-</div>
-
-
-
-The code repository for "[Learning without Forgetting for Vision-Language Models](https://arxiv.org/abs/2305.19270) (**TPAMI 2025**)"  in PyTorch.  If you use any content of this repo for your work, please cite the following bib entry: 
-
-```bibtex
-@article{zhou2025learning,
-  title={Learning without Forgetting for Vision-Language Models},
-  author={Da-Wei Zhou and Yuanhan Zhang and Yan Wang and Jingyi Ning and Han-Jia Ye and De-Chuan Zhan and Ziwei Liu},
-  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
-  year={2025},
-  volume={47},
-  number={6},
-  pages={4489-4504},
-}
-```
-
-
-
-# 📢 **Updates**
-
-[07/2025] Check out our [latest work](https://arxiv.org/abs/2503.08510) on class-incremental learning with CLIP (**ICCV 2025**)! 
-
-[02/2025] Accepted to TPAMI.
-
-[10/2024] Code has been released.
-
-[05/2023] [arXiv](https://arxiv.org/abs/2305.19270v1) paper has been released.
-
-
-# 📝 Introduction
-
-Class-incremental learning (CIL) aims to adapt to emerging new classes without forgetting old ones. Traditional CIL models are trained from scratch to continually acquire knowledge as data evolves.While traditional CIL methods focus on visual information to grasp core features, recent advances in Vision-Language Models (VLM) have shown promising capabilities in learning generalizable representations with the aid of textual information. However, when continually trained with new classes, VLMs often suffer from catastrophic forgetting of former knowledge. Applying VLMs to CIL poses two major challenges: 1) how to adapt the model without forgetting; and 2) how to make full use of the multi-modal information. To this end, we propose PROjectiOn Fusion (PROOF) that enables VLMs to learn without forgetting. To handle the first challenge, we propose training task-specific projections based on the frozen image/text encoders. When facing new tasks, new projections are expanded, and former projections are fixed, alleviating the forgetting of old concepts. For the second challenge,  we propose the fusion module to better utilize the cross-modality information. By jointly adjusting visual and textual features, the model can capture better task-specific semantic information that facilitates recognition. Extensive experiments on nine benchmark datasets with various continual learning scenarios and various VLMs validate that PROOF achieves state-of-the-art performance.
-
-<div align="center">
-<img src="resources/img.png" width="95%">
-</div>
+# you may test the upper bound and lower bound of PEFT on CLIP without any effort on trying to solving forgetting. 
 
 ## 🔧 Requirements
 
@@ -110,5 +45,5 @@ This repo is based on [CIL_Survey](https://github.com/zhoudw-zdw/CIL_Survey) and
 
 ## 💭 Correspondence
 
-If you have any questions, please  contact me via [email](mailto:zhoudw@lamda.nju.edu.cn) or open an [issue](https://github.com/zhoudw-zdw/Proof/issues/new).
+If you have any questions, please  contact me via [email](mailto:juntao.tang04@outlook.com) 
 

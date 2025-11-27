@@ -717,7 +717,6 @@ class PromptClipNet(PeftClipNet):
             self._visual_hooks.append(hook)
 
     def _init_prompt_parameter(self, dim):
-        """初始化prompt参数"""
         if self.prompt_init == 'zeros':
             prompt = torch.zeros(self.prompt_length, dim)#prompt由prompt_length个可学习的token组成
         elif self.prompt_init == 'uniform':
